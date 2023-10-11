@@ -33,21 +33,32 @@ class HTTPResponse(object):
         self.body = body
 
 class HTTPClient(object):
-    #def get_host_port(self,url):
-
+    def get_host_port(self,url):
+        return url.hostname, url.port
+    
     def connect(self, host, port):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((host, port))
         return None
 
     def get_code(self, data):
-        return None
+        # Use split by spaces to isolate code
+        return data.split()[1]
 
     def get_headers(self,data):
-        return None
+        # Collect headers using dictionary
+        headers = {}
+        lines = data.splitlines()
+        # Run through each line and check for headers in key/value format seperated by : and save it in dict
+        for line in lines:
+            if line.contains(":"):
+                index = line.indexOf(":")
+                headers[line[:index]] = line[index:]
+        return headers
 
     def get_body(self, data):
-        return None
+        # Use split to find body using sequence that leads to body
+        return data.split("\r\n\r\n")[1]
     
     def sendall(self, data):
         self.socket.sendall(data.encode('utf-8'))
@@ -68,13 +79,35 @@ class HTTPClient(object):
         return buffer.decode('utf-8')
 
     def GET(self, url, args=None):
-        code = 500
-        body = ""
+        # Parse url and get host and port and create connection
+        parsed = urllib.parse.urlparse(url)
+        host, port = self.get_host_port(parsed)
+        print(host,port,parsed.path)
+        self.connect(host, port)
+        # Send request
+        self.sendall(f"GET {parsed.path} HTTP/1.1\nHost: {host}")
+        # Get server response and read it
+        response = self.recvall(self.socket)
+        self.close()
+        code = self.get_code(response)
+        body = self.get_body(response)
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
-        code = 500
-        body = ""
+        # Parse url and get host and port and create connection
+        parsed = urllib.parse.urlparse(url)
+        host, port = self.get_host_port(parsed)
+        self.connect(host, port)
+        # Create post request
+        post = f"POST {parsed.path} HTTP/1.1\nHost: {host}\nContent-Type: application/x-www-form-urlencoded\n\n"
+        if args:
+            # Convert dictionary to string to post 
+            post += urllib.parse.urlencode(args)
+        self.sendall(post)
+        response = self.recvall(self.socket)
+        self.close()
+        code = self.get_code(response)
+        body = self.get_body(response)
         return HTTPResponse(code, body)
 
     def command(self, url, command="GET", args=None):
