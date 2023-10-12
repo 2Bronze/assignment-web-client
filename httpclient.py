@@ -33,8 +33,19 @@ class HTTPResponse(object):
         self.body = body
 
 class HTTPClient(object):
+    # Also using this function for path
     def get_host_port(self,url):
-        return url.hostname, url.port
+        host = url.hostname
+        port = url.port
+        path = url.path
+        # Set defaults for port and path for internet gets test as none are specifed
+        '''
+        if url.port == None:
+            port = 80
+        if url.path == None:
+            path = '/'
+        '''
+        return host, port, path
     
     def connect(self, host, port):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -44,6 +55,7 @@ class HTTPClient(object):
     def get_code(self, data):
         # Use split by spaces to isolate code
         return data.split()[1]
+        
 
     def get_headers(self,data):
         # Collect headers using dictionary
@@ -81,32 +93,37 @@ class HTTPClient(object):
     def GET(self, url, args=None):
         # Parse url and get host and port and create connection
         parsed = urllib.parse.urlparse(url)
-        host, port = self.get_host_port(parsed)
-        print(host,port,parsed.path)
+        host, port, path = self.get_host_port(parsed)
+        # Set defaults for path and port in case they are empty
         self.connect(host, port)
         # Send request
-        self.sendall(f"GET {parsed.path} HTTP/1.1\nHost: {host}")
+        self.sendall(f"GET {path} HTTP/1.1\nHost: {host}\n")
+        self.socket.shutdown(socket.SHUT_WR)
         # Get server response and read it
         response = self.recvall(self.socket)
         self.close()
-        code = self.get_code(response)
+        code = int(self.get_code(response))
         body = self.get_body(response)
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
         # Parse url and get host and port and create connection
         parsed = urllib.parse.urlparse(url)
-        host, port = self.get_host_port(parsed)
+        host, port, path = self.get_host_port(parsed)
         self.connect(host, port)
         # Create post request
-        post = f"POST {parsed.path} HTTP/1.1\nHost: {host}\nContent-Type: application/x-www-form-urlencoded\n\n"
+        post = f"POST {path} HTTP/1.1\nHost: {host}\nContent-Type: application/x-www-form-urlencoded\n"
         if args:
-            # Convert dictionary to string to post 
-            post += urllib.parse.urlencode(args)
+            # Convert dictionary to string to post to body and if body add content length header 
+            post += f"Content-Length: {len(urllib.parse.urlencode(args).encode('utf-8'))}\n\n{urllib.parse.urlencode(args)}"
+        else:
+            # If no args then content length is 0
+            post += f"Content-Length: {0}\n"
         self.sendall(post)
+        self.socket.shutdown(socket.SHUT_WR)
         response = self.recvall(self.socket)
         self.close()
-        code = self.get_code(response)
+        code = int(self.get_code(response))
         body = self.get_body(response)
         return HTTPResponse(code, body)
 
