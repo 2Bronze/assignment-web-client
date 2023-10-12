@@ -41,7 +41,7 @@ class HTTPClient(object):
         # Set defaults for port and path for internet get tests as none are specifed
         if url.port == None:
             port = 80
-        if url.path == None:
+        if url.path == '':
             path = '/'
         
         return host, port, path
@@ -96,8 +96,7 @@ class HTTPClient(object):
         # Set defaults for path and port in case they are empty
         self.connect(host, port)
         # Send request
-        self.sendall(f"GET {path} HTTP/1.1\r\nHost: {host}\r\n\r\n")
-        self.socket.shutdown(socket.SHUT_WR)
+        self.sendall(f"GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n")
         # Get server response and read it
         response = self.recvall(self.socket)
         self.close()
@@ -111,15 +110,14 @@ class HTTPClient(object):
         host, port, path = self.get_host_port(parsed)
         self.connect(host, port)
         # Create post request
-        post = f"POST {path} HTTP/1.1\nHost: {host}\nContent-Type: application/x-www-form-urlencoded\n"
+        post = f"POST {path} HTTP/1.1\r\nHost: {host}\r\nContent-Type: application/x-www-form-urlencoded\r\n"
         if args:
             # Convert dictionary to string to post to body and if body add content length header 
-            post += f"Content-Length: {len(urllib.parse.urlencode(args).encode('utf-8'))}\n\n{urllib.parse.urlencode(args)}"
+            post += f"Content-Length: {len(urllib.parse.urlencode(args).encode('utf-8'))}\r\nConnection: close\r\n\r\n{urllib.parse.urlencode(args)}"
         else:
             # If no args then content length is 0
-            post += f"Content-Length: {0}\n"
+            post += f"Content-Length: {0}\r\nConnection: close\r\n\r\n"
         self.sendall(post)
-        self.socket.shutdown(socket.SHUT_WR)
         response = self.recvall(self.socket)
         self.close()
         code = int(self.get_code(response))
