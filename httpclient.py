@@ -38,13 +38,12 @@ class HTTPClient(object):
         host = url.hostname
         port = url.port
         path = url.path
-        # Set defaults for port and path for internet gets test as none are specifed
-        '''
+        # Set defaults for port and path for internet get tests as none are specifed
         if url.port == None:
             port = 80
         if url.path == None:
             path = '/'
-        '''
+        
         return host, port, path
     
     def connect(self, host, port):
@@ -97,7 +96,7 @@ class HTTPClient(object):
         # Set defaults for path and port in case they are empty
         self.connect(host, port)
         # Send request
-        self.sendall(f"GET {path} HTTP/1.1\nHost: {host}\n")
+        self.sendall(f"GET {path} HTTP/1.1\r\nHost: {host}\r\n\r\n")
         self.socket.shutdown(socket.SHUT_WR)
         # Get server response and read it
         response = self.recvall(self.socket)
